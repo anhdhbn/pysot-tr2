@@ -69,6 +69,8 @@ __C.TRAIN.CLS_WEIGHT = 1.0
 
 __C.TRAIN.LOC_WEIGHT = 1.2
 
+__C.TRAIN.IOU_WEIGHT = 1.2
+
 __C.TRAIN.MASK_WEIGHT = 1
 
 __C.TRAIN.PRINT_FREQ = 20
@@ -196,6 +198,18 @@ __C.ADJUST.KWARGS = CN(new_allowed=True)
 
 # Adjust layer type
 __C.ADJUST.TYPE = "AdjustAllLayer"
+
+# ------------------------------------------------------------------------ #
+# Tr2 options
+# ------------------------------------------------------------------------ #
+__C.TRANSFORMER = CN()
+
+# Tr2 type
+__C.TRANSFORMER.TYPE = 'v2'
+
+__C.TRANSFORMER.TRANSFORMER = False
+
+__C.TRANSFORMER.KWARGS = CN(new_allowed=True)
 
 # ------------------------------------------------------------------------ #
 # RPN options
