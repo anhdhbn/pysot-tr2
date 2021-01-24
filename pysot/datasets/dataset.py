@@ -15,7 +15,7 @@ import numpy as np
 from torch.utils.data import Dataset
 
 from pysot.utils.bbox import center2corner, Center
-from pysot.datasets.anchor_target import AnchorTarget
+from pysot.datasets.anchor_target import AnchorTarget, AnchorTargetTr2
 from pysot.datasets.augmentation import Augmentation
 from pysot.core.config import cfg
 
@@ -149,6 +149,7 @@ class TrkDataset(Dataset):
 
         # create anchor target
         self.anchor_target = AnchorTarget()
+        self.anchor_target_tr = AnchorTargetTr2()
 
         # create sub dataset
         self.all_dataset = []
@@ -265,15 +266,27 @@ class TrkDataset(Dataset):
                                        gray=gray)
 
         # get labels
-        cls, delta, delta_weight, overlap = self.anchor_target(
-                bbox, cfg.TRAIN.OUTPUT_SIZE, neg)
+        new_shape = search.shape[:2]
         template = template.transpose((2, 0, 1)).astype(np.float32)
         search = search.transpose((2, 0, 1)).astype(np.float32)
-        return {
-                'template': template,
-                'search': search,
-                'label_cls': cls,
-                'label_loc': delta,
-                'label_loc_weight': delta_weight,
-                'bbox': np.array(bbox)
-                }
+
+        if cfg.TRANSFORMER.TRANSFORMER:
+            cls, delta = self.anchor_target_tr(bbox, search.shape, neg)
+            return {
+                    'template': template,
+                    'search': search,
+                    'label_cls': cls,
+                    'label_loc': delta,
+                    'bbox': np.array(bbox),
+                    }
+        else:
+            cls, delta, delta_weight, overlap = self.anchor_target(
+                    bbox, cfg.TRAIN.OUTPUT_SIZE, neg)
+            return {
+                    'template': template,
+                    'search': search,
+                    'label_cls': cls,
+                    'label_loc': delta,
+                    'label_loc_weight': delta_weight,
+                    'bbox': np.array(bbox)
+                    }

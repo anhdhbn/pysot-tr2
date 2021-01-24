@@ -94,16 +94,19 @@ def build_opt_lr(model, current_epoch=0):
         trainable_params += [{'params': model.neck.parameters(),
                               'lr': cfg.TRAIN.BASE_LR}]
 
-    trainable_params += [{'params': model.rpn_head.parameters(),
-                          'lr': cfg.TRAIN.BASE_LR}]
+    if cfg.TRANSFORMER.TRANSFORMER:
+        pass
+    else:
+        trainable_params += [{'params': model.rpn_head.parameters(),
+                            'lr': cfg.TRAIN.BASE_LR}]
 
-    if cfg.MASK.MASK:
-        trainable_params += [{'params': model.mask_head.parameters(),
-                              'lr': cfg.TRAIN.BASE_LR}]
+        if cfg.MASK.MASK:
+            trainable_params += [{'params': model.mask_head.parameters(),
+                                'lr': cfg.TRAIN.BASE_LR}]
 
-    if cfg.REFINE.REFINE:
-        trainable_params += [{'params': model.refine_head.parameters(),
-                              'lr': cfg.TRAIN.LR.BASE_LR}]
+        if cfg.REFINE.REFINE:
+            trainable_params += [{'params': model.refine_head.parameters(),
+                                'lr': cfg.TRAIN.LR.BASE_LR}]
 
     optimizer = torch.optim.SGD(trainable_params,
                                 momentum=cfg.TRAIN.MOMENTUM,
