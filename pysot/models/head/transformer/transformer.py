@@ -51,10 +51,10 @@ class Transformer(nn.Module):
 
         :param pos: positional encoding, the same shape as src.
 
-        :return: tensor of shape [batchSize, numQuery * numDecoderLayer, hiddenDims]
+        :return: tensor of shape [batchSize, num_decoder_layer * WH, hiddenDims]
         """
         # flatten NxCxHxW to HWxNxC
-        bs, c, h, w = src.shape
+        bs, c, h, w = src2.shape
         src = src.flatten(2).permute(2, 0, 1) # HWxNxC
         src2 = src2.flatten(2).permute(2, 0, 1) # HWxNxC
 
@@ -66,5 +66,5 @@ class Transformer(nn.Module):
 
         
         memory = self.encoder(src, src_key_padding_mask=mask, pos=pos)
-        out = self.decoder(src2, memory, memory_key_padding_mask=mask, pos=pos, pos2=pos2) # num_decoder_layer x num_queries x N x C 
+        out = self.decoder(src2, memory, memory_key_padding_mask=mask, pos=pos, pos2=pos2) # num_decoder_layer x WH x N x C 
         return out.transpose(0, 2).flatten(1, 2)#, memory.permute(1, 2, 0).view(bs, c, h, w)
