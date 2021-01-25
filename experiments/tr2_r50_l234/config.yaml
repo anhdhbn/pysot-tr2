@@ -1,0 +1,78 @@
+META_ARC: "siamtr_r50_l234"
+
+BACKBONE:
+    TYPE: "resnet50"
+    KWARGS:
+        used_layers: [2, 3, 4]
+    TRAIN_LAYERS: ['layer2', 'layer3', 'layer4']
+    TRAIN_EPOCH: 10
+    LAYERS_LR: 0.1
+    # PRETRAINED: 'pretrained_models/resnet50.model'
+
+ADJUST:
+    ADJUST: false
+    TYPE: "AdjustAllLayer"
+    KWARGS:
+        in_channels: [512, 1024, 2048]
+        out_channels: [256, 512, 1024]
+
+TRANSFORMER:
+    TRANSFORMER: true
+    TYPE: 'v1'
+    KWARGS:
+        hidden_dims: 512
+        num_heads: 8
+        num_encoder_layer: 6
+        num_decoder_layer: 6
+        dim_feed_forward: 512
+        dropout: 0.1
+        num_queries: 30
+
+TRACK:
+    TYPE: 'Tr2Tracker'
+
+TRAIN:
+    EPOCH: 20
+    START_EPOCH: 0
+    BATCH_SIZE: 10
+    BASE_LR: 0.005
+    CLS_WEIGHT: 1.0
+    LOC_WEIGHT: 1.2
+    IOU_WEIGHT: 1.2
+    RESUME: ''
+    # PRETRAINED: './snapshot/checkpoint_e20.pth'
+    # SNAPSHOT_DIR: './snapshot'
+
+    LR:
+        TYPE: 'log'
+        KWARGS:
+            start_lr: 0.005
+            end_lr: 0.0005
+    LR_WARMUP:
+        TYPE: 'step'
+        EPOCH: 10
+        KWARGS:
+            start_lr: 0.001
+            end_lr: 0.005
+            step: 1
+
+DATASET:
+    NAMES: 
+    - 'COCO'
+
+    TEMPLATE:
+        SHIFT: 4
+        SCALE: 0.05
+        BLUR: 0.0
+        FLIP: 0.0
+        COLOR: 1.0
+
+    SEARCH:
+        SHIFT: 64
+        SCALE: 0.18
+        BLUR: 0.2
+        FLIP: 0.0
+        COLOR: 1.0
+
+    NEG: 0.2
+    GRAY: 0.0
