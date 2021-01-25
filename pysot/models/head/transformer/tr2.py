@@ -34,7 +34,7 @@ class Tr2Head(nn.Module):
         pos2, mask2 = self.position_embed(search)
         features2 = self.reshape(search)
 
-        out = self.transformer(features2, mask2, self.query_embed.weight, pos2, features.permute(2, 3, 0, 1).flatten(0, 1))
+        out = self.transformer(features, mask, pos, features2, mask2, pos2)
         print(features.shape, pos.shape, mask.shape)
         print(features2.shape, pos2.shape, mask2.shape)
         print(out.shape)

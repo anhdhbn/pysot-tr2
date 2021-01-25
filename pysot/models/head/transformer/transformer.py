@@ -39,7 +39,8 @@ class Transformer(nn.Module):
             if p.dim() > 1:
                 nn.init.xavier_uniform_(p)
 
-    def forward(self, src: Tensor, mask: Tensor, query: Tensor, pos: Tensor, src2: Tensor) -> Tensor:
+    def forward(self, src: Tensor, mask: Tensor, pos: Tensor, 
+                    src2: Tensor, mask2: Tensor, pos2:Tensor) -> Tensor:
         """
         :param src: tensor of shape [batchSize, hiddenDims, imageHeight // 32, imageWidth // 32]
 
@@ -55,12 +56,15 @@ class Transformer(nn.Module):
         # flatten NxCxHxW to HWxNxC
         bs, c, h, w = src.shape
         src = src.flatten(2).permute(2, 0, 1) # HWxNxC
+        src2 = src2.flatten(2).permute(2, 0, 1) # HWxNxC
 
         mask = mask.flatten(1) # NxHW
-        pos = pos.flatten(2).permute(2, 0, 1) # HWxNxC
-        query = query.unsqueeze(1).repeat(1, bs, 1) # num_queries * N * h_dims
-        tgt = torch.zeros_like(src2)
+        mask2 = mask2.flatten(1) # NxHW
 
+        pos = pos.flatten(2).permute(2, 0, 1) # HWxNxC
+        pos2 = pos2.flatten(2).permute(2, 0, 1) # HWxNxC
+
+        
         memory = self.encoder(src, src_key_padding_mask=mask, pos=pos)
-        out = self.decoder(tgt, memory, memory_key_padding_mask=mask, pos=pos, query_pos=src2) # num_decoder_layer x num_queries x N x C 
+        out = self.decoder(src2, memory, memory_key_padding_mask=mask, pos=pos, pos2=pos2) # num_decoder_layer x num_queries x N x C 
         return out.transpose(0, 2).flatten(1, 2)#, memory.permute(1, 2, 0).view(bs, c, h, w)

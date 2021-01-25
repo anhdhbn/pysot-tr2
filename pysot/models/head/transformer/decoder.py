@@ -12,20 +12,29 @@ class TransformerDecoder(nn.Module):
         self.layers = getClones(decoder_layer, num_layers)
 
     def forward(self, 
-                tgt: Tensor,
+                src2: Tensor, 
                 memory: Tensor,
                 tgt_mask: Optional[Tensor] = None,
                 memory_mask: Optional[Tensor] = None,
                 tgt_key_padding_mask: Optional[Tensor] = None,
                 memory_key_padding_mask: Optional[Tensor] = None,
                 pos: Optional[Tensor] = None,
-                query_pos: Optional[Tensor] = None):
-        out = tgt
+                pos2: Optional[Tensor] = None):
+        out = src2
 
         intermediate = []
 
         for layer in self.layers:
-            out = layer(out, memory, tgt_mask, memory_mask, tgt_key_padding_mask, memory_key_padding_mask, pos, query_pos)
+            out = layer(
+                src2=src2,
+                memory = memory,
+                tgt_mask = tgt_mask,
+                memory_mask = memory_mask,
+                tgt_key_padding_mask=tgt_key_padding_mask,
+                memory_key_padding_mask = memory_key_padding_mask,
+                pos = pos,
+                pos2 = pos2
+                )
             intermediate.append(out)
 
         return torch.stack(intermediate)
@@ -52,30 +61,31 @@ class TransformerDecoderLayer(nn.Module):
         self.norm_ff = nn.LayerNorm(hidden_dims)
 
     def forward(self, 
-                tgt: Tensor, 
+                src2: Tensor, 
                 memory: Tensor,
                 tgt_mask: Optional[Tensor] = None,
                 memory_mask: Optional[Tensor] = None,
                 tgt_key_padding_mask: Optional[Tensor] = None,
                 memory_key_padding_mask: Optional[Tensor] = None,
                 pos: Optional[Tensor] = None,
-                query_pos: Optional[Tensor] = None):
-        q = k = with_pos_embed(tgt, query_pos)
-        tgt2, _ = self.self_attn(q, k, value=tgt, attn_mask=tgt_mask,
+                pos2: Optional[Tensor] = None):
+        q = k = with_pos_embed(src2, pos2)
+        src2_, _ = self.self_attn(q, k, value=src2, attn_mask=tgt_mask,
                               key_padding_mask=tgt_key_padding_mask)
-        tgt = tgt + self.dropout1(tgt2)
-        tgt = self.norm1(tgt)
         
-        tgt2, _ = self.attn(query=with_pos_embed(tgt, query_pos),
+        src2 = src2 + self.dropout1(src2_)
+        src2 = self.norm1(src2)
+
+        src2_, _ = self.attn(query=q,
                                    key=with_pos_embed(memory, pos),
                                    value=memory, attn_mask=memory_mask,
                                    key_padding_mask=memory_key_padding_mask)
-        
-        tgt = tgt + self.dropout2(tgt2)
-        tgt = self.norm2(tgt)
-        tgt2 = self.feed_forward(tgt)
-        tgt = tgt + tgt2
-        tgt = self.norm_ff(tgt)
-        return tgt
+
+        src2 = src2 + self.dropout2(src2_)
+        src2 = self.norm2(src2)
+        src2_ = self.feed_forward(src2)
+        src2 = src2 + src2_
+        src2 = self.norm_ff(src2)
+        return src2
 
 
