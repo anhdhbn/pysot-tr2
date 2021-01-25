@@ -51,17 +51,7 @@ class Tr2Head(nn.Module):
         features2 = self.reshape(search)
 
         out = self.transformer(features, mask, pos, features2, mask2, pos2)
-        # print(out.shape)
-        # outputs_coord = self.bbox_embed(out).sigmoid()
-        # print(outputs_coord.shape)
-        # N = out.size(0)
-        # out = out.view((N, -1))
-
-        # self.class_embed = nn.Linear(out.size(1), 1)
-        # self.bbox_embed = MLP(input_dim=out.size(1), hidden_dim=256, output_dim=4, num_layers=3)
-        # self.bbox_embed = nn.Linear(out.size(1), 4)
         outputs_class = self.class_embed(out).sigmoid()
         outputs_coord = self.bbox_embed(out).sigmoid()
 
-        print(outputs_class.shape, outputs_coord.shape)
-        # return outputs_class, outputs_coord
+        return outputs_class, outputs_coord

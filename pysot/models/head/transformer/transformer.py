@@ -33,6 +33,7 @@ class Transformer(nn.Module):
         )
 
         self.decoder = TransformerDecoder(decoder_layer=decoder_layer, num_layers=num_decoder_layer)
+        self.conv = nn.Conv1d(384, 1, 1)
 
     def _reset_parameters(self):
         for p in self.parameters():
@@ -67,4 +68,6 @@ class Transformer(nn.Module):
         
         memory = self.encoder(src, src_key_padding_mask=mask, pos=pos)
         out = self.decoder(src2, memory, memory_key_padding_mask=mask, pos=pos, pos2=pos2) # num_decoder_layer x WH x N x C 
-        return out.transpose(0, 2).flatten(1, 2)#, memory.permute(1, 2, 0).view(bs, c, h, w)
+        out = out.flatten(0, 1).permute(1, 0, 2)
+        out = self.conv(out).squeeze(1)
+        return out#, memory.permute(1, 2, 0).view(bs, c, h, w)

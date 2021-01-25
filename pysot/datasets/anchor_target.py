@@ -94,12 +94,12 @@ class AnchorTarget:
 class AnchorTargetTr2:
     def __call__(self, target, shape, neg=False):
         c, h, w = shape
-        cls = np.array([1], dtype=np.float)
+        cls = np.array([1], dtype=np.float32)
         delta = np.zeros((4), dtype=np.float32)  
         if neg:
-            cls = np.array([0], dtype=np.float)
+            cls = np.array([0], dtype=np.float32)
             return cls, delta
         
         tcx, tcy, tw, th = corner2center(target)
-        delta = np.array([tcx/w, tcy/h, tw/w, th/h], dtype=np.float)
+        delta = np.array([tcx/w, tcy/h, tw/w, th/h], dtype=np.float32)
         return cls, delta

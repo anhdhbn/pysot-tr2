@@ -95,7 +95,8 @@ def build_opt_lr(model, current_epoch=0):
                               'lr': cfg.TRAIN.BASE_LR}]
 
     if cfg.TRANSFORMER.TRANSFORMER:
-        pass
+        trainable_params += [{'params': model.tr2_head.parameters(),
+                              'lr': cfg.TRAIN.BASE_LR}]
     else:
         trainable_params += [{'params': model.rpn_head.parameters(),
                             'lr': cfg.TRAIN.BASE_LR}]

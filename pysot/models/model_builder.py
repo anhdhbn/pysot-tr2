@@ -13,7 +13,20 @@ from pysot.models.loss import select_cross_entropy_loss, weight_l1_loss
 from pysot.models.backbone import get_backbone
 from pysot.models.head import get_rpn_head, get_mask_head, get_refine_head, get_tr2_head
 from pysot.models.neck import get_neck
+import torchvision
+from torch import Tensor
+from pysot.models.head.transformer.criterion import Tr2Criterion
 
+class Backbone(nn.Module):
+    def __init__(self, backbone_name:str="resnet50"):
+        super().__init__()
+        backbone = getattr(torchvision.models, backbone_name)(pretrained=True)
+        modules=list(backbone.children())[:-2]
+        self.backbone = nn.Sequential(*modules)
+        self.num_channels = 512 if backbone_name in ('resnet18', 'resnet34') else 2048
+    
+    def forward(self, x: Tensor) -> Tensor:
+        return self.backbone(x)
 
 class ModelBuilder(nn.Module):
     def __init__(self):
@@ -29,8 +42,10 @@ class ModelBuilder(nn.Module):
                                  **cfg.ADJUST.KWARGS)
 
         if cfg.TRANSFORMER.TRANSFORMER:
+            self.backbone = Backbone()
             self.tr2_head = get_tr2_head(cfg.TRANSFORMER.TYPE,
                                         **cfg.TRANSFORMER.KWARGS)
+            self.criterion = Tr2Criterion(cfg.TRAIN.CLS_WEIGHT, cfg.TRAIN.LOC_WEIGHT, cfg.TRAIN.IOU_WEIGHT)
         else:
             # build rpn head
             self.rpn_head = get_rpn_head(cfg.RPN.TYPE,
@@ -90,8 +105,9 @@ class ModelBuilder(nn.Module):
         if cfg.TRANSFORMER.TRANSFORMER:
             zf = self.backbone(template)
             xf = self.backbone(search)
-            x = self.tr2_head(zf[-1], xf[-1])
-            exit(0)
+            x = self.tr2_head(zf, xf)
+            outputs = self.criterion(x, (label_cls, label_loc))
+            return outputs
         else:
             # get feature
             label_loc_weight = data['label_loc_weight'].cuda()
