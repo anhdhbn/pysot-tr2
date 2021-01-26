@@ -16,17 +16,21 @@ from pysot.models.neck import get_neck
 import torchvision
 from torch import Tensor
 from pysot.models.head.transformer.criterion import Tr2Criterion
+from torchvision.models._utils import IntermediateLayerGetter
 
 class Backbone(nn.Module):
     def __init__(self, backbone_name:str="resnet50"):
         super().__init__()
         backbone = getattr(torchvision.models, backbone_name)(pretrained=True)
-        modules=list(backbone.children())[:-2]
-        self.backbone = nn.Sequential(*modules)
+        return_layers = {"layer1": "layer1", "layer2": "layer2", "layer3": "layer3", "layer4": "layer4"}
+        self.body = IntermediateLayerGetter(backbone, return_layers=return_layers)
+        for k, v in self.body.items():
+            setattr(self, k, v)
         self.num_channels = 512 if backbone_name in ('resnet18', 'resnet34') else 2048
     
     def forward(self, x: Tensor) -> Tensor:
-        return self.backbone(x)
+        out = self.body(x)["layer4"]
+        return out
 
 class ModelBuilder(nn.Module):
     def __init__(self):
