@@ -79,11 +79,19 @@ def build_opt_lr(model, current_epoch=0):
             m.eval()
     if current_epoch >= cfg.BACKBONE.TRAIN_EPOCH:
         for layer in cfg.BACKBONE.TRAIN_LAYERS:
-            for param in getattr(model.backbone, layer).parameters():
-                param.requires_grad = True
-            for m in getattr(model.backbone, layer).modules():
-                if isinstance(m, nn.BatchNorm2d):
-                    m.train()
+            if cfg.TRANSFORMER.TRANSFORMER:
+                for _, child in model.named_children():
+                    for param in child.parameters():
+                        param.requires_grad = True
+                    for m in child.modules():
+                        if isinstance(m, nn.BatchNorm2d):
+                            m.train()  
+            else:
+                for param in getattr(model.backbone, layer).parameters():
+                    param.requires_grad = True
+                for m in getattr(model.backbone, layer).modules():
+                    if isinstance(m, nn.BatchNorm2d):
+                        m.train()
 
     trainable_params = []
     trainable_params += [{'params': filter(lambda x: x.requires_grad,
@@ -174,7 +182,7 @@ def train(train_loader, model, optimizer, lr_scheduler, tb_writer):
             get_rank() == 0:
         os.makedirs(cfg.TRAIN.SNAPSHOT_DIR)
 
-    logger.info("model\n{}".format(describe(model.module)))
+    # logger.info("model\n{}".format(describe(model.module)))
     end = time.time()
     for idx, data in enumerate(train_loader):
         if epoch != idx // num_per_epoch + start_epoch:
