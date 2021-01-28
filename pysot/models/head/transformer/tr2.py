@@ -42,7 +42,6 @@ class Tr2Head(nn.Module):
         )
         self.fixed_size = 64
         self.adap = nn.AdaptiveAvgPool2d((None, self.fixed_size))
-        self.avg = nn.AvgPool1d(self.fixed_size, 1)
         self.max = nn.MaxPool1d(self.fixed_size, 1)
         self.class_embed = nn.Linear(hidden_dims, 1)
         self.bbox_embed = MLP(input_dim=hidden_dims, hidden_dim=hidden_dims, output_dim=4, num_layers=3)
