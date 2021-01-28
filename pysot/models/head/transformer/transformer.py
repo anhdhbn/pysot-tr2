@@ -32,7 +32,14 @@ class Transformer(nn.Module):
             dim_feedforward=dim_feed_forward
         )
 
+        decoder_layer2 = TransformerDecoderLayer(
+            hidden_dims=hidden_dims,
+            num_heads=num_heads,
+            dropout=dropout,
+            dim_feedforward=dim_feed_forward
+        )
         self.decoder = TransformerDecoder(decoder_layer=decoder_layer, num_layers=num_decoder_layer)
+        self.decoder2 = TransformerDecoder(decoder_layer=decoder_layer2, num_layers=num_decoder_layer)
 
     def _reset_parameters(self):
         for p in self.parameters():
@@ -67,4 +74,5 @@ class Transformer(nn.Module):
         
         memory = self.encoder(src, src_key_padding_mask=mask, pos=pos)
         out = self.decoder(src2, memory, memory_key_padding_mask=mask, pos=pos, pos2=pos2) # num_decoder_layer x WH x N x C 
-        return out.transpose(1, 2)
+        out2 = self.decoder(src2, memory, memory_key_padding_mask=mask, pos=pos, pos2=pos2) # num_decoder_layer x WH x N x C 
+        return out.transpose(1, 2), out2.transpose(1, 2)

@@ -40,7 +40,10 @@ class Tr2Head(nn.Module):
             dim_feed_forward=dim_feed_forward,
             dropout=dropout
         )
-        self.conv = nn.Conv1d(64, 1, 1)
+        self.fixed_size = 64
+        self.adap = nn.AdaptiveAvgPool2d((None, self.fixed_size))
+        self.avg = nn.AvgPool1d(self.fixed_size, 1)
+        self.max = nn.MaxPool1d(self.fixed_size, 1)
         self.class_embed = nn.Linear(hidden_dims, 1)
         self.bbox_embed = MLP(input_dim=hidden_dims, hidden_dim=hidden_dims, output_dim=4, num_layers=3)
 
@@ -51,9 +54,11 @@ class Tr2Head(nn.Module):
         pos2, mask2 = self.position_embed(search)
         features2 = self.reshape(search)
 
-        out = self.transformer(features, mask, pos, features2, mask2, pos2)[-1]
-        out = self.conv(out).squeeze(1)
+        out, out2 = self.transformer(features, mask, pos, features2, mask2, pos2)
+        out = self.max(self.adap(out[-1].transpose(1,2))).flatten(1)
+        out2 = self.max(self.adap(out2[-1].transpose(1,2))).flatten(1)
+
         outputs_class = self.class_embed(out).sigmoid()
-        outputs_coord = self.bbox_embed(out).sigmoid()
+        outputs_coord = self.bbox_embed(out2).sigmoid()
 
         return outputs_class, outputs_coord
