@@ -97,8 +97,8 @@ def build_opt_lr(model, current_epoch=0):
     if cfg.TRANSFORMER.TRANSFORMER:
         trainable_params += [{'params': model.tr2_head.parameters(),
                               'lr': cfg.TRAIN.BASE_LR}]
-        optimizer = torch.optim.AdamW(trainable_params, lr=args.lr,
-                                  weight_decay=args.weight_decay)
+        optimizer = torch.optim.AdamW(trainable_params, lr=cfg.TRAIN.BASE_LR,
+                                  weight_decay=cfg.TRAIN.BASE_LR)
     else:
         trainable_params += [{'params': model.rpn_head.parameters(),
                             'lr': cfg.TRAIN.BASE_LR}]
@@ -115,6 +115,7 @@ def build_opt_lr(model, current_epoch=0):
                                     momentum=cfg.TRAIN.MOMENTUM,
                                     weight_decay=cfg.TRAIN.WEIGHT_DECAY)
     
+
     lr_scheduler = build_lr_scheduler(optimizer, epochs=cfg.TRAIN.EPOCH)
     lr_scheduler.step(cfg.TRAIN.START_EPOCH)
     return optimizer, lr_scheduler
