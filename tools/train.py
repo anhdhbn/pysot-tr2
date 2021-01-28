@@ -98,7 +98,7 @@ def build_opt_lr(model, current_epoch=0):
         trainable_params += [{'params': model.tr2_head.parameters(),
                               'lr': cfg.TRAIN.BASE_LR}]
         optimizer = torch.optim.AdamW(trainable_params, lr=cfg.TRAIN.BASE_LR,
-                                  weight_decay=cfg.TRAIN.BASE_LR)
+                                  weight_decay=cfg.TRAIN.WEIGHT_DECAY)
     else:
         trainable_params += [{'params': model.rpn_head.parameters(),
                             'lr': cfg.TRAIN.BASE_LR}]
