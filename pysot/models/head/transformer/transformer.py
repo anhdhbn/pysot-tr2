@@ -46,8 +46,8 @@ class Transformer(nn.Module):
             if p.dim() > 1:
                 nn.init.xavier_uniform_(p)
 
-    def forward(self, src: Tensor, mask: Tensor, pos: Tensor, 
-                    src2: Tensor, mask2: Tensor, pos2:Tensor) -> Tensor:
+    def forward(self, template: Tensor, mask_template: Tensor, pos_template: Tensor, 
+                    search: Tensor, mask_search: Tensor, pos_search:Tensor) -> Tensor:
         """
         :param src: tensor of shape [batchSize, hiddenDims, imageHeight // 32, imageWidth // 32]
 
@@ -61,18 +61,18 @@ class Transformer(nn.Module):
         :return: tensor of shape [batchSize, num_decoder_layer * WH, hiddenDims]
         """
         # flatten NxCxHxW to HWxNxC
-        bs, c, h, w = src2.shape
-        src = src.flatten(2).permute(2, 0, 1) # HWxNxC
-        src2 = src2.flatten(2).permute(2, 0, 1) # HWxNxC
+        bs, c, h, w = search.shape
+        template = template.flatten(2).permute(2, 0, 1) # HWxNxC
+        search = search.flatten(2).permute(2, 0, 1) # HWxNxC
 
-        mask = mask.flatten(1) # NxHW
-        mask2 = mask2.flatten(1) # NxHW
+        mask_template = mask_template.flatten(1) # NxHW
+        mask_search = mask_search.flatten(1) # NxHW
 
-        pos = pos.flatten(2).permute(2, 0, 1) # HWxNxC
-        pos2 = pos2.flatten(2).permute(2, 0, 1) # HWxNxC
+        pos_template = pos_template.flatten(2).permute(2, 0, 1) # HWxNxC
+        pos_search = pos_search.flatten(2).permute(2, 0, 1) # HWxNxC
 
         
-        memory = self.encoder(src, src_key_padding_mask=mask, pos=pos)
-        out = self.decoder(src2, memory, memory_key_padding_mask=mask, pos=pos, pos2=pos2) # num_decoder_layer x WH x N x C 
-        out2 = self.decoder(src2, memory, memory_key_padding_mask=mask, pos=pos, pos2=pos2) # num_decoder_layer x WH x N x C 
+        memory = self.encoder(template, src_key_padding_mask=mask_template, pos=pos_template)
+        out = self.decoder(search, memory, memory_key_padding_mask=mask_template, pos_template=pos_template, pos_search=pos_search) # num_decoder_layer x WH x N x C 
+        out2 = self.decoder(search, memory, memory_key_padding_mask=mask_template, pos_template=pos_template, pos_search=pos_search) # num_decoder_layer x WH x N x C 
         return out.transpose(1, 2), out2.transpose(1, 2)

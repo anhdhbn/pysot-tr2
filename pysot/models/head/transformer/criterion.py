@@ -2,7 +2,7 @@ from typing import Dict, List, Tuple
 
 import torch
 from torch import nn, Tensor
-from pysot.models.head.transformer.boxOps import boxCxcywh2Xyxy, gIoU, boxIoU, boxIoU_batch
+from pysot.models.head.transformer import box_ops
 import torch.nn.functional as F
 
 class Tr2Criterion(nn.Module):
@@ -35,6 +35,8 @@ class Tr2Criterion(nn.Module):
         mask = torch.cat((mask, mask, mask, mask), 1)
         loc_mask = loc[mask].view(-1, 4)
         label_loc_mask = label_loc[mask].view(-1, 4)
+
+        
         # loc loss
         loc_loss = F.mse_loss(loc_mask, label_loc_mask)
 
@@ -43,7 +45,10 @@ class Tr2Criterion(nn.Module):
         # giou_loss = giou_loss.sum() / (N + 1e-6)
 
         # iou loss
-        iou = boxIoU_batch(loc_mask, label_loc_mask)
+        iou, _ = box_ops.box_iou(
+            box_ops.box_cxcywh_to_xyxy(loc_mask), 
+            box_ops.box_cxcywh_to_xyxy(label_loc_mask))
+        iou = torch.diagonal(iou)
         iou_loss = torch.mean(1 - iou)
 
         outputs['loc_loss'] = loc_loss

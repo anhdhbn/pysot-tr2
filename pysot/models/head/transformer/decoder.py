@@ -12,28 +12,28 @@ class TransformerDecoder(nn.Module):
         self.layers = getClones(decoder_layer, num_layers)
 
     def forward(self, 
-                src2: Tensor, 
+                search: Tensor, 
                 memory: Tensor,
                 tgt_mask: Optional[Tensor] = None,
                 memory_mask: Optional[Tensor] = None,
                 tgt_key_padding_mask: Optional[Tensor] = None,
                 memory_key_padding_mask: Optional[Tensor] = None,
-                pos: Optional[Tensor] = None,
-                pos2: Optional[Tensor] = None):
-        out = src2
+                pos_template: Optional[Tensor] = None,
+                pos_search: Optional[Tensor] = None):
+        out = search
 
         intermediate = []
 
         for layer in self.layers:
             out = layer(
-                src2=src2,
+                search=search,
                 memory = memory,
                 tgt_mask = tgt_mask,
                 memory_mask = memory_mask,
                 tgt_key_padding_mask=tgt_key_padding_mask,
                 memory_key_padding_mask = memory_key_padding_mask,
-                pos = pos,
-                pos2 = pos2
+                pos_template = pos_template,
+                pos_search = pos_search
                 )
             intermediate.append(out)
 
@@ -61,31 +61,38 @@ class TransformerDecoderLayer(nn.Module):
         self.norm_ff = nn.LayerNorm(hidden_dims)
 
     def forward(self, 
-                src2: Tensor, 
+                search: Tensor, 
                 memory: Tensor,
                 tgt_mask: Optional[Tensor] = None,
                 memory_mask: Optional[Tensor] = None,
                 tgt_key_padding_mask: Optional[Tensor] = None,
                 memory_key_padding_mask: Optional[Tensor] = None,
-                pos: Optional[Tensor] = None,
-                pos2: Optional[Tensor] = None):
-        q = k = with_pos_embed(src2, pos2)
-        src2_, _ = self.self_attn(q, k, value=src2, attn_mask=tgt_mask,
+                pos_template: Optional[Tensor] = None,
+                pos_search: Optional[Tensor] = None):
+        q = k = with_pos_embed(search, pos_search)
+        # self-att
+        search2, _ = self.self_attn(q, k, value=search, attn_mask=tgt_mask,
                               key_padding_mask=tgt_key_padding_mask)
         
-        src2 = src2 + self.dropout1(src2_)
-        src2 = self.norm1(src2)
+        search2 = search + self.dropout1(search2)
+        search = self.norm1(search)
 
-        src2_, _ = self.attn(query=q,
-                                   key=with_pos_embed(memory, pos),
-                                   value=memory, attn_mask=memory_mask,
-                                   key_padding_mask=memory_key_padding_mask)
+        # query from template
+        # key, value from search
+        q2 = with_pos_embed(memory, pos_template)
+        template_att, _ = self.attn(query=q2,
+                                   key=k,
+                                   value=search, attn_mask=tgt_mask,
+                                   key_padding_mask=tgt_key_padding_mask)
+        
+        # add norm + dropout
+        template_att = q2 + self.dropout2(template_att)
+        template_att = self.norm2(template_att)
 
-        src2 = src2 + self.dropout2(src2_)
-        src2 = self.norm2(src2)
-        src2_ = self.feed_forward(src2)
-        src2 = src2 + src2_
-        src2 = self.norm_ff(src2)
-        return src2
+        # feed forward + norm + dropout
+        template_att2 = self.feed_forward(template_att)
+        template_att = template_att + template_att2
+        template_att = self.norm_ff(template_att)
+        return template_att
 
 
