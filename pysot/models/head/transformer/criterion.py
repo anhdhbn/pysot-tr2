@@ -51,10 +51,15 @@ class Tr2Criterion(nn.Module):
         iou = torch.diagonal(iou)
         iou_loss = torch.mean(1 - iou)
 
+        giou_loss = 1 - torch.diag(box_ops.generalized_box_iou(
+            box_ops.box_cxcywh_to_xyxy(loc_mask),
+            box_ops.box_cxcywh_to_xyxy(label_loc_mask)))
+        giou_loss = torch.mean(giou_loss)
+
         outputs['loc_loss'] = loc_loss
         outputs['cls_loss'] = cls_loss
-        # outputs['giou_loss'] = giou_loss
-        outputs['iou_loss'] = iou_loss
+        outputs['giou_loss'] = giou_loss
+        # outputs['iou_loss'] = iou_loss
         outputs['iou_var'] = torch.std(iou)
         # outputs['total_loss'] = self.cls_weight * cls_loss + self.loc_weight * loc_loss + self.giou_weight * giou_loss
         outputs['total_loss'] = self.cls_weight * cls_loss + self.loc_weight * loc_loss + self.giou_weight * iou_loss
