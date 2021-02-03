@@ -316,6 +316,7 @@ def main():
     logger.info("model prepare done")
 
     # start training
+    logger.info("params: " + str(sum(p.numel() for p in model.parameters())))
     train(train_loader, dist_model, optimizer, lr_scheduler, tb_writer)
 
 

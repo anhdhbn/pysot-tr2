@@ -186,6 +186,8 @@ __C.BACKBONE.LAYERS_LR = 0.1
 # Switch to train layer
 __C.BACKBONE.TRAIN_EPOCH = 10
 
+__C.BACKBONE.CUSTOM_BACKBONE = True
+
 # ------------------------------------------------------------------------ #
 # Adjust layer options
 # ------------------------------------------------------------------------ #

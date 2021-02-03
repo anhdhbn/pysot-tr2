@@ -37,8 +37,11 @@ class ModelBuilder(nn.Module):
         super(ModelBuilder, self).__init__()
 
         # build backbone
-        self.backbone = get_backbone(cfg.BACKBONE.TYPE,
+        if cfg.BACKBONE.CUSTOM_BACKBONE:
+            self.backbone = get_backbone(cfg.BACKBONE.TYPE,
                                      **cfg.BACKBONE.KWARGS)
+        else:
+            self.backbone = Backbone(cfg.BACKBONE.TYPE)
 
         # build adjust layer
         if cfg.ADJUST.ADJUST:
@@ -46,7 +49,6 @@ class ModelBuilder(nn.Module):
                                  **cfg.ADJUST.KWARGS)
 
         if cfg.TRANSFORMER.TRANSFORMER:
-            self.backbone = Backbone()
             self.tr2_head = get_tr2_head(cfg.TRANSFORMER.TYPE,
                                         **cfg.TRANSFORMER.KWARGS)
             self.criterion = Tr2Criterion(cfg.TRAIN.CLS_WEIGHT, cfg.TRAIN.LOC_WEIGHT, cfg.TRAIN.IOU_WEIGHT)
@@ -109,6 +111,9 @@ class ModelBuilder(nn.Module):
         if cfg.TRANSFORMER.TRANSFORMER:
             zf = self.backbone(template)
             xf = self.backbone(search)
+            if isinstance(zf, list):
+                zf = zf[-1]
+                xf = xf[-1]
             x = self.tr2_head(zf, xf)
             outputs = self.criterion(x, (label_cls, label_loc))
             return outputs
