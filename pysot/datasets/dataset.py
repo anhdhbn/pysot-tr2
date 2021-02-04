@@ -310,7 +310,7 @@ class CocoValDataset(Dataset):
         sub_dataset = SubDataset(
                 "coco val",
                 "training_dataset/coco/crop511",
-                "training_dataset/coco/train2017.json",
+                "training_dataset/coco/val2017.json",
                 1,
                 -1,
                 start
