@@ -29,9 +29,9 @@ from pysot.utils.model_load import load_pretrain, restore_from
 from pysot.utils.average_meter import AverageMeter
 from pysot.utils.misc import describe, commit
 from pysot.models.model_builder import ModelBuilder
-from pysot.datasets.dataset import TrkDataset
+from pysot.datasets.dataset import TrkDataset, CocoValDataset
 from pysot.core.config import cfg
-
+from tqdm import tqdm
 
 logger = logging.getLogger('global')
 parser = argparse.ArgumentParser(description='siamrpn tracking')
@@ -70,6 +70,20 @@ def build_data_loader():
                               sampler=train_sampler)
     return train_loader
 
+def build_val_loader():
+    logger.info("build val dataset")
+    val_dataset = CocoValDataset()
+    logger.info("build val dataset done")
+
+    val_sampler = None
+    if get_world_size() > 1:
+        val_sampler = DistributedSampler(val_dataset)
+    val_loader = DataLoader(val_dataset,
+                              batch_size=cfg.TRAIN.BATCH_SIZE,
+                              num_workers=cfg.TRAIN.NUM_WORKERS,
+                              pin_memory=True,
+                              sampler=val_sampler)
+    return val_loader
 
 def build_opt_lr(model, current_epoch=0):
     for param in model.backbone.parameters():
@@ -158,7 +172,32 @@ def log_grads(model, tb_writer, tb_index):
     tb_writer.add_scalar('grad/rpn', rpn_norm, tb_index)
 
 
-def train(train_loader, model, optimizer, lr_scheduler, tb_writer):
+def val(val_loader, model, epoch=-1):
+    model.eval()
+    outputs = {}
+    for data in tqdm(val_loader):
+        out = model(data)
+        for k, v in out.items():
+            v = v.cpu().detach().numpy()
+            if k not in outputs: outputs[k] = [v]
+            else: outputs[k].append(v)
+    batch_info = {}
+    for k, v in outputs.items():
+        batch_info[k] = np.mean(np.array(outputs[k]))
+
+    info = "Val epoch: [{}]\n".format(
+                            epoch+1)
+    for cc, (k, v) in enumerate(batch_info.items()):
+        if cc % 2 == 0:
+            info += ("\t{name}: {val:.6f}\t").format(name=k,
+                    val=batch_info[k])
+        else:
+            info += ("{name}: {val:.6f}\n").format(name=k,
+                    val=batch_info[k])
+    logger.info(info)                     
+    model.train()
+
+def train(train_loader, model, optimizer, lr_scheduler, tb_writer, val_loader=None):
     cur_lr = lr_scheduler.get_cur_lr()
     rank = get_rank()
 
@@ -178,8 +217,12 @@ def train(train_loader, model, optimizer, lr_scheduler, tb_writer):
         os.makedirs(cfg.TRAIN.SNAPSHOT_DIR)
 
     # logger.info("model\n{}".format(describe(model.module)))
+
     end = time.time()
     for idx, data in enumerate(train_loader):
+        if idx == 0:
+            if val_loader is not None:
+                val(val_loader, model, epoch=epoch)
         if epoch != idx // num_per_epoch + start_epoch:
             epoch = idx // num_per_epoch + start_epoch
 
@@ -189,6 +232,9 @@ def train(train_loader, model, optimizer, lr_scheduler, tb_writer):
                          'state_dict': model.module.state_dict(),
                          'optimizer': optimizer.state_dict()},
                         cfg.TRAIN.SNAPSHOT_DIR+'/checkpoint_e%d.pth' % (epoch))
+
+            if val_loader is not None:
+                val(val_loader, model, epoch=epoch)
 
             if epoch == cfg.TRAIN.EPOCH:
                 return
@@ -295,6 +341,7 @@ def main():
 
     # build dataset loader
     train_loader = build_data_loader()
+    val_loader = build_val_loader()
 
     # build optimizer and lr_scheduler
     optimizer, lr_scheduler = build_opt_lr(model,
@@ -317,7 +364,7 @@ def main():
 
     # start training
     logger.info("params: " + str(sum(p.numel() for p in model.parameters())))
-    train(train_loader, dist_model, optimizer, lr_scheduler, tb_writer)
+    train(train_loader, dist_model, optimizer, lr_scheduler, tb_writer, val_loader)
 
 
 if __name__ == '__main__':

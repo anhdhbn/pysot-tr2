@@ -266,7 +266,6 @@ class TrkDataset(Dataset):
                                        gray=gray)
 
         # get labels
-        new_shape = search.shape[:2]
         template = template.transpose((2, 0, 1)).astype(np.float32)
         search = search.transpose((2, 0, 1)).astype(np.float32)
 
@@ -290,3 +289,148 @@ class TrkDataset(Dataset):
                     'label_loc_weight': delta_weight,
                     'bbox': np.array(bbox)
                     }
+
+class CocoValDataset(Dataset):
+    def __init__(self,):
+        super(CocoValDataset, self).__init__()
+
+        desired_size = (cfg.TRAIN.SEARCH_SIZE - cfg.TRAIN.EXEMPLAR_SIZE) / \
+            cfg.ANCHOR.STRIDE + 1 + cfg.TRAIN.BASE_SIZE
+        if desired_size != cfg.TRAIN.OUTPUT_SIZE:
+            raise Exception('size not match!')
+
+        # create anchor target
+        self.anchor_target = AnchorTarget()
+        self.tr_target = AnchorTargetTr2()
+        # create sub dataset
+        self.all_dataset = []
+        start = 0
+        self.num = 0
+
+        sub_dataset = SubDataset(
+                "coco val",
+                "training_dataset/coco/crop511",
+                "training_dataset/coco/train2017.json",
+                1,
+                -1,
+                start
+            )
+        start += sub_dataset.num
+        self.num += sub_dataset.num_use
+
+        sub_dataset.log()
+        self.all_dataset.append(sub_dataset)
+
+        # data augmentation
+        self.template_aug = Augmentation(
+                cfg.DATASET.TEMPLATE.SHIFT,
+                cfg.DATASET.TEMPLATE.SCALE,
+                cfg.DATASET.TEMPLATE.BLUR,
+                cfg.DATASET.TEMPLATE.FLIP,
+                cfg.DATASET.TEMPLATE.COLOR
+            )
+        self.search_aug = Augmentation(
+                cfg.DATASET.SEARCH.SHIFT,
+                cfg.DATASET.SEARCH.SCALE,
+                cfg.DATASET.SEARCH.BLUR,
+                cfg.DATASET.SEARCH.FLIP,
+                cfg.DATASET.SEARCH.COLOR
+            )
+        self.pick = self.shuffle()
+
+    def shuffle(self):
+        pick = []
+        m = 0
+        while m < self.num:
+            p = []
+            for sub_dataset in self.all_dataset:
+                sub_p = sub_dataset.pick
+                p += sub_p
+            np.random.shuffle(p)
+            pick += p
+            m = len(pick)
+        logger.info("shuffle done!")
+        logger.info("dataset length {}".format(self.num))
+        return pick[:self.num]
+
+    def _find_dataset(self, index):
+        for dataset in self.all_dataset:
+            if dataset.start_idx + dataset.num > index:
+                return dataset, index - dataset.start_idx
+
+    def _get_bbox(self, image, shape):
+        imh, imw = image.shape[:2]
+        if len(shape) == 4:
+            w, h = shape[2]-shape[0], shape[3]-shape[1]
+        else:
+            w, h = shape
+        context_amount = 0.5
+        exemplar_size = cfg.TRAIN.EXEMPLAR_SIZE
+        wc_z = w + context_amount * (w+h)
+        hc_z = h + context_amount * (w+h)
+        s_z = np.sqrt(wc_z * hc_z)
+        scale_z = exemplar_size / s_z
+        w = w*scale_z
+        h = h*scale_z
+        cx, cy = imw//2, imh//2
+        bbox = center2corner(Center(cx, cy, w, h))
+        return bbox
+
+    def __len__(self):
+        return self.num
+
+    def __getitem__(self, index):
+        index = self.pick[index]
+        dataset, index = self._find_dataset(index)
+
+        gray = False
+        neg = False
+        # get one dataset
+        template, search = dataset.get_positive_pair(index)
+
+        # get image
+        template_image = cv2.imread(template[0])
+        search_image = cv2.imread(search[0])
+        search_path = search[0]
+        # get bounding box
+        template_box = self._get_bbox(template_image, template[1])
+        search_box = self._get_bbox(search_image, search[1])
+
+        # augmentation
+        template, _ = self.template_aug(template_image,
+                                        template_box,
+                                        cfg.TRAIN.EXEMPLAR_SIZE,
+                                        gray=gray)
+
+        search, bbox = self.search_aug(search_image,
+                                       search_box,
+                                       cfg.TRAIN.SEARCH_SIZE,
+                                       gray=gray)
+
+        template = template.transpose((2, 0, 1)).astype(np.float32)
+        search = search.transpose((2, 0, 1)).astype(np.float32)
+
+        # get labels 
+        if cfg.TRANSFORMER.TRANSFORMER:
+            cls, delta = self.tr_target(bbox,search.shape, neg)
+            return {
+                    'template': template,
+                    'search': search,
+                    'label_cls': cls,
+                    'label_loc': delta,
+                    'bbox': np.array(bbox),
+                    'path': search_path
+                    }
+        else:
+            cls, delta, delta_weight, overlap = self.anchor_target(
+                    bbox, cfg.TRAIN.OUTPUT_SIZE, neg)
+            
+            return {
+                    'template': template,
+                    'search': search,
+                    'label_cls': cls,
+                    'label_loc': delta,
+                    'label_loc_weight': delta_weight,
+                    'bbox': np.array(bbox)
+                    }
+
