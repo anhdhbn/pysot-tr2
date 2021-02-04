@@ -172,7 +172,7 @@ def log_grads(model, tb_writer, tb_index):
     tb_writer.add_scalar('grad/rpn', rpn_norm, tb_index)
 
 
-def val(val_loader, model, epoch=-1):
+def val(val_loader, model, tb_writer, epoch=-1):
     model.eval()
     outputs = {}
     for data in tqdm(val_loader):
@@ -188,13 +188,14 @@ def val(val_loader, model, epoch=-1):
     info = "Val epoch: [{}]\n".format(
                             epoch+1)
     for cc, (k, v) in enumerate(batch_info.items()):
+        tb_writer.add_scalar(f"val_{k}", v, epoch + 1)
         if cc % 2 == 0:
             info += ("\t{name}: {val:.6f}\t").format(name=k,
                     val=batch_info[k])
         else:
             info += ("{name}: {val:.6f}\n").format(name=k,
                     val=batch_info[k])
-    logger.info(info)                     
+    logger.info(info)
     model.train()
 
 def train(train_loader, model, optimizer, lr_scheduler, tb_writer, val_loader=None):
@@ -220,9 +221,8 @@ def train(train_loader, model, optimizer, lr_scheduler, tb_writer, val_loader=No
 
     end = time.time()
     for idx, data in enumerate(train_loader):
-        if idx == 0:
-            if val_loader is not None:
-                val(val_loader, model, epoch=epoch)
+        if idx == 0 and rank == 0 and val_loader is not None:
+            val(val_loader, model, tb_writer, epoch=epoch)
         if epoch != idx // num_per_epoch + start_epoch:
             epoch = idx // num_per_epoch + start_epoch
 
@@ -233,8 +233,8 @@ def train(train_loader, model, optimizer, lr_scheduler, tb_writer, val_loader=No
                          'optimizer': optimizer.state_dict()},
                         cfg.TRAIN.SNAPSHOT_DIR+'/checkpoint_e%d.pth' % (epoch))
 
-            if val_loader is not None:
-                val(val_loader, model, epoch=epoch)
+            if idx == 0 and rank == 0 and val_loader is not None:
+                val(val_loader, model, tb_writer, epoch=epoch)
 
             if epoch == cfg.TRAIN.EPOCH:
                 return
