@@ -233,7 +233,7 @@ def train(train_loader, model, optimizer, lr_scheduler, tb_writer, val_loader=No
                          'optimizer': optimizer.state_dict()},
                         cfg.TRAIN.SNAPSHOT_DIR+'/checkpoint_e%d.pth' % (epoch))
 
-            if idx == 0 and rank == 0 and val_loader is not None:
+            if rank == 0 and val_loader is not None:
                 val(val_loader, model, tb_writer, epoch=epoch)
 
             if epoch == cfg.TRAIN.EPOCH:
