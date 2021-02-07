@@ -27,10 +27,11 @@ class Tr2Head(nn.Module):
                 num_encoder_layer=6, 
                 num_decoder_layer=6, 
                 dim_feed_forward=2048, 
-                dropout=.1):
+                dropout=.1,
+                d_model=2048):
         super().__init__()
         self.position_embed = PositionEmbeddingSine(hidden_dims//2)
-        self.reshape = nn.Conv2d(2048, hidden_dims, 1)
+        self.reshape = nn.Conv2d(d_model, hidden_dims, 1)
         self.transformer = Transformer(
             hidden_dims=hidden_dims,
             num_heads=num_heads,

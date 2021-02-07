@@ -71,22 +71,22 @@ class TransformerDecoderLayer(nn.Module):
                 pos_search: Optional[Tensor] = None):
         q = k = with_pos_embed(search, pos_search)
         # self-att
-        search2, _ = self.self_attn(q, k, value=search, attn_mask=tgt_mask,
+        search2, _ = self.self_attn(query=q, key=k, value=search, attn_mask=tgt_mask,
                               key_padding_mask=tgt_key_padding_mask)
         
-        search2 = search + self.dropout1(search2)
+        search = search + self.dropout1(search2)
         search = self.norm1(search)
 
         # query from template
         # key, value from search
         q2 = with_pos_embed(memory, pos_template)
-        template_att, _ = self.attn(query=q2,
+        template_att2, _ = self.attn(query=q2,
                                    key=k,
                                    value=search, attn_mask=tgt_mask,
                                    key_padding_mask=tgt_key_padding_mask)
         
         # add norm + dropout
-        template_att = q2 + self.dropout2(template_att)
+        template_att = q2 + self.dropout2(template_att2)
         template_att = self.norm2(template_att)
 
         # feed forward + norm + dropout

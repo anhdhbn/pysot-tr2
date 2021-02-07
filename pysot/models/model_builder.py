@@ -49,6 +49,8 @@ class ModelBuilder(nn.Module):
                                  **cfg.ADJUST.KWARGS)
 
         if cfg.TRANSFORMER.TRANSFORMER:
+            if cfg.ADJUST.ADJUST:
+                cfg.TRANSFORMER.KWARGS["d_model"] = cfg.ADJUST.KWARGS.out_channels[-1]
             self.tr2_head = get_tr2_head(cfg.TRANSFORMER.TYPE,
                                         **cfg.TRANSFORMER.KWARGS)
             self.criterion = Tr2Criterion(cfg.TRAIN.CLS_WEIGHT, cfg.TRAIN.LOC_WEIGHT, cfg.TRAIN.IOU_WEIGHT)
@@ -111,9 +113,21 @@ class ModelBuilder(nn.Module):
         if cfg.TRANSFORMER.TRANSFORMER:
             zf = self.backbone(template)
             xf = self.backbone(search)
-            if isinstance(zf, list):
-                zf = zf[-1]
-                xf = xf[-1]
+
+            if len(cfg.ADJUST.KWARGS.out_channels) == 1:
+                if isinstance(zf, list):
+                    zf = zf[-1]
+                    xf = xf[-1]
+                if cfg.ADJUST.ADJUST:
+                    zf = self.neck(zf)
+                    xf = self.neck(xf)
+            else:
+                if isinstance(zf, list):
+                    if cfg.ADJUST.ADJUST:
+                        zf = self.neck(zf)
+                        xf = self.neck(xf)
+                    zf = zf[-1]
+                    xf = xf[-1]
             x = self.tr2_head(zf, xf)
             outputs = self.criterion(x, (label_cls, label_loc))
             return outputs
