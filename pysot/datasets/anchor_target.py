@@ -99,7 +99,7 @@ class AnchorTargetTr2:
         if neg:
             cls = np.array([0], dtype=np.float32)
             return cls, delta
-        
-        tcx, tcy, tw, th = corner2center(target)
+        # target: (x1, y1, x2, y2)
+        tcx, tcy, tw, th = corner2center(target) # (cx, cy, w, h)
         delta = np.array([tcx/w, tcy/h, tw/w, th/h], dtype=np.float32)
         return cls, delta

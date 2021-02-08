@@ -61,3 +61,33 @@ class Tr2Head(nn.Module):
         outputs_coord = self.bbox_embed(out2).sigmoid()
         
         return outputs_class, outputs_coord
+
+class Tr2Tracker(Tr2Head):
+    def init(self, template):
+        pos_template, mask_template = self.position_embed(template)
+        template = self.reshape(template)
+
+        self.template = template.flatten(2).permute(2, 0, 1)
+        self.mask_template = mask_template.flatten(1)
+        self.pos_template = pos_template.flatten(2).permute(2, 0, 1)
+        
+        self.memory = self.transformer.init(self.template, self.mask_template, self.pos_template)
+
+
+    def track(self, search):
+        pos_search, mask_search = self.position_embed(search)
+        search = self.reshape(search)
+
+        search = search.flatten(2).permute(2, 0, 1)
+        mask_search = mask_search.flatten(1)
+        pos_search = pos_search.flatten(2).permute(2, 0, 1)
+
+        out, out2 = self.transformer.track(search, self.memory, self.mask_template, self.pos_template, pos_search)
+        # [6, 32, 16, 512]
+        out = self.adap(out[-1].transpose(1,2)).flatten(1)
+        out2 = self.adap(out2[-1].transpose(1,2)).flatten(1)
+
+        outputs_class = self.class_embed(out).sigmoid()
+        outputs_coord = self.bbox_embed(out2).sigmoid()
+        
+        return outputs_class, outputs_coord

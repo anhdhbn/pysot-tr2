@@ -8,7 +8,7 @@ from __future__ import unicode_literals
 from pysot.models.head.mask import MaskCorr, Refine
 from pysot.models.head.rpn import UPChannelRPN, DepthwiseRPN, MultiRPN
 
-from pysot.models.head.transformer.tr2 import Tr2Head
+from pysot.models.head.transformer.tr2 import Tr2Head, Tr2Tracker
 
 RPNS = {
         'UPChannelRPN': UPChannelRPN,
@@ -25,7 +25,7 @@ REFINE = {
          }
 
 TRANSFORMER = {
-    'v1': Tr2Head
+    'v1': Tr2Tracker
 }
 
 def get_rpn_head(name, **kwargs):

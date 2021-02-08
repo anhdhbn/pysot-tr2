@@ -85,9 +85,14 @@ def main():
                     pred_bboxes.append(1)
                 elif idx > frame_counter:
                     outputs = tracker.track(img)
-                    pred_bbox = outputs['bbox']
-                    if cfg.MASK.MASK:
-                        pred_bbox = outputs['polygon']
+                    if cfg.TRANSFORMER.TRANSFORMER:
+                        cls, loc = outputs
+                        pred_bbox = loc
+                        overlap = vot_overlap(pred_bbox, gt_bbox, (img.shape[1], img.shape[0]))
+                    else:
+                        pred_bbox = outputs['bbox']
+                        if cfg.MASK.MASK:
+                            pred_bbox = outputs['polygon']
                     overlap = vot_overlap(pred_bbox, gt_bbox, (img.shape[1], img.shape[0]))
                     if overlap > 0:
                         # not lost
@@ -110,12 +115,13 @@ def main():
                                 True, (0, 255, 255), 3)
                     else:
                         bbox = list(map(int, pred_bbox))
+                        print(bbox)
                         cv2.rectangle(img, (bbox[0], bbox[1]),
                                       (bbox[0]+bbox[2], bbox[1]+bbox[3]), (0, 255, 255), 3)
                     cv2.putText(img, str(idx), (40, 40), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 255), 2)
                     cv2.putText(img, str(lost_number), (40, 80), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2)
                     cv2.imshow(video.name, img)
-                    cv2.waitKey(1)
+                    cv2.waitKey(1000000)
             toc /= cv2.getTickFrequency()
             # save results
             video_path = os.path.join('results', args.dataset, model_name,

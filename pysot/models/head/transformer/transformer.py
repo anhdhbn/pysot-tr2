@@ -74,5 +74,14 @@ class Transformer(nn.Module):
         
         memory = self.encoder(template, src_key_padding_mask=mask_template, pos=pos_template)
         out = self.decoder(search, memory, memory_key_padding_mask=mask_template, pos_template=pos_template, pos_search=pos_search) # num_decoder_layer x WH x N x C 
-        out2 = self.decoder(search, memory, memory_key_padding_mask=mask_template, pos_template=pos_template, pos_search=pos_search) # num_decoder_layer x WH x N x C 
+        out2 = self.decoder2(search, memory, memory_key_padding_mask=mask_template, pos_template=pos_template, pos_search=pos_search) # num_decoder_layer x WH x N x C 
+        return out.transpose(1, 2), out2.transpose(1, 2)
+
+
+    def init(self, template, mask_template, pos_template):
+        return self.encoder(template, src_key_padding_mask=mask_template, pos=pos_template)
+
+    def track(self, search, memory, mask_template, pos_template, pos_search):
+        out = self.decoder(search, memory, memory_key_padding_mask=mask_template, pos_template=pos_template, pos_search=pos_search)
+        out2 = self.decoder2(search, memory, memory_key_padding_mask=mask_template, pos_template=pos_template, pos_search=pos_search)
         return out.transpose(1, 2), out2.transpose(1, 2)

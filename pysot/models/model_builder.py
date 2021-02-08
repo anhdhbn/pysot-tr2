@@ -35,7 +35,7 @@ class Backbone(nn.Module):
 class ModelBuilder(nn.Module):
     def __init__(self):
         super(ModelBuilder, self).__init__()
-
+        self.num = 0
         # build backbone
         self.backbone = get_backbone(cfg.BACKBONE.TYPE,
                                      **cfg.BACKBONE.KWARGS)
@@ -65,27 +65,35 @@ class ModelBuilder(nn.Module):
 
     def template(self, z):
         zf = self.backbone(z)
-        if cfg.MASK.MASK:
-            zf = zf[-1]
-        if cfg.ADJUST.ADJUST:
-            zf = self.neck(zf)
-        self.zf = zf
+        if cfg.TRANSFORMER.TRANSFORMER:
+            self.tr2_head.init(zf)
+        else:
+            if cfg.MASK.MASK:
+                zf = zf[-1]
+            if cfg.ADJUST.ADJUST:
+                zf = self.neck(zf)
+            self.zf = zf
 
-    def track(self, x):
+    def track(self, x, label_cls, label_loc):
         xf = self.backbone(x)
-        if cfg.MASK.MASK:
-            self.xf = xf[:-1]
-            xf = xf[-1]
-        if cfg.ADJUST.ADJUST:
-            xf = self.neck(xf)
-        cls, loc = self.rpn_head(self.zf, xf)
-        if cfg.MASK.MASK:
-            mask, self.mask_corr_feature = self.mask_head(self.zf, xf)
-        return {
-                'cls': cls,
-                'loc': loc,
-                'mask': mask if cfg.MASK.MASK else None
-               }
+        if cfg.TRANSFORMER.TRANSFORMER:
+            cls, loc = self.tr2_head.track(xf)
+            outputs = self.criterion((cls, loc), (label_cls, label_loc))
+            return cls, loc, outputs
+        else:
+            if cfg.MASK.MASK:
+                self.xf = xf[:-1]
+                xf = xf[-1]
+            if cfg.ADJUST.ADJUST:
+                xf = self.neck(xf)
+            cls, loc = self.rpn_head(self.zf, xf)
+            if cfg.MASK.MASK:
+                mask, self.mask_corr_feature = self.mask_head(self.zf, xf)
+            return {
+                    'cls': cls,
+                    'loc': loc,
+                    'mask': mask if cfg.MASK.MASK else None
+                }
 
     def mask_refine(self, pos):
         return self.refine_head(self.xf, self.mask_corr_feature, pos)
@@ -105,12 +113,68 @@ class ModelBuilder(nn.Module):
         label_cls = data['label_cls'].cuda()
         label_loc = data['label_loc'].cuda()
         
-
+        folder = "/media/2tb/anhdh/tr2/debug"
         if cfg.TRANSFORMER.TRANSFORMER:
             zf = self.backbone(template)
             xf = self.backbone(search)
             x = self.tr2_head(zf, xf)
             outputs = self.criterion(x, (label_cls, label_loc))
+
+            import torch, cv2
+            from pysot.models.head.transformer import box_ops
+            
+            _, predicted_loc = x
+            predicted_loc_out = box_ops.box_cxcywh_to_xyxy(predicted_loc).cpu().detach().numpy()
+            label_cls_out = label_cls.flatten().cpu().type(torch.IntTensor).detach().numpy()
+            label_loc_out = box_ops.box_cxcywh_to_xyxy(label_loc).cpu().detach().numpy()
+            search_out = search.permute(0, 2, 3, 1).cpu().detach().numpy()
+            template_out = template.permute(0, 2, 3, 1).cpu().detach().numpy()
+            N, w, h, c = search_out.shape
+
+            iou = outputs['iou'].cpu().detach().numpy()
+
+            arr_idx = []
+            for i in range(N):
+                if label_cls_out[i] == 1:
+                    arr_idx.append(i)
+
+            idx = 0
+            for i in arr_idx:
+                x1, y1, x2, y2 = label_loc_out[i]
+                x1 = int(x1*w)
+                y1 = int(y1*h)
+                x2 = int(x2*w)
+                y2 = int(y2*h)
+                label = (x1, y1, x2, y2)
+
+                x1, y1, x2, y2 = predicted_loc_out[i]
+                x1 = int(x1*w)
+                y1 = int(y1*h)
+                x2 = int(x2*w)
+                y2 = int(y2*h)
+                label_predicted =  (x1, y1, x2, y2)
+
+                def cvt_str(s):
+                    (x1, y1, x2, y2) = s
+                    return f"{x1},{x2},{y1},{y2}"
+
+                def split_data(data, take=0):
+                    x1, y1, x2, y2 = data
+                    if take==0: return (x1, y1)
+                    else: return (x2, y2)
+
+                cv2.imwrite(f"{folder}/{self.num}_search_{cvt_str(label)}_{cvt_str(label_predicted)}_{str(round(iou[idx], 2))}.png", search_out[i])
+                # print(split_data(label, 0), split_data(label, 1), split_data(label_predicted, 0), split_data(label_predicted, 1))
+                # print(search_out[i])
+                img = cv2.cvtColor(search_out[i], cv2.COLOR_BGR2RGB)
+                cv2.rectangle(img, split_data(label, 0), split_data(label, 1), (0, 255, 0), 2)
+                cv2.rectangle(img, split_data(label_predicted, 0), split_data(label_predicted, 1), (0, 0, 255), 2)
+                cv2.imwrite(f"{folder}/{self.num}_search_draw_{cvt_str(label)}_{cvt_str(label_predicted)}_{str(round(iou[idx], 2))}.png", img)
+                cv2.imwrite(f"{folder}/{self.num}_template.png", template_out[i])
+                self.num = self.num + 1
+                if self.num > 2000:
+                    exit(0)
+            outputs.pop("iou", None)
             return outputs
         else:
             # get feature

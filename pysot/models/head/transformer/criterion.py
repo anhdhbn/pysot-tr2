@@ -56,6 +56,7 @@ class Tr2Criterion(nn.Module):
         # outputs['giou_loss'] = giou_loss
         outputs['iou_loss'] = iou_loss
         outputs['iou_var'] = torch.std(iou)
+        outputs['iou'] = iou
         # outputs['total_loss'] = self.cls_weight * cls_loss + self.loc_weight * loc_loss + self.giou_weight * giou_loss
         outputs['total_loss'] = self.cls_weight * cls_loss + self.loc_weight * loc_loss + self.giou_weight * iou_loss
         return outputs
