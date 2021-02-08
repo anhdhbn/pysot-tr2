@@ -13,7 +13,7 @@ class Tr2Criterion(nn.Module):
         self.cls_weight = cls_weight
         self.giou_weight = giou_weight
 
-        self.tr_cls_loss = nn.BCELoss()
+        self.tr_cls_loss = nn.BCEWithLogitsLoss()
 
     def forward(self, x: Tuple[Tensor, Tensor], y: Tuple[str, Tensor]) -> Dict[str, Tensor]:
         """

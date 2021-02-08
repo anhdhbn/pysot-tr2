@@ -57,7 +57,7 @@ class Tr2Head(nn.Module):
         out = self.adap(out[-1].transpose(1,2)).flatten(1)
         out2 = self.adap(out2[-1].transpose(1,2)).flatten(1)
 
-        outputs_class = self.class_embed(out).sigmoid()
+        outputs_class = self.class_embed(out)
         outputs_coord = self.bbox_embed(out2).sigmoid()
         
         return outputs_class, outputs_coord

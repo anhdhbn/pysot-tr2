@@ -33,6 +33,12 @@ from pysot.datasets.dataset import TrkDataset, CocoValDataset
 from pysot.core.config import cfg
 from tqdm import tqdm
 
+try:
+    from apex import amp
+    APEX_AVAILABLE = True
+except ModuleNotFoundError:
+    APEX_AVAILABLE = False
+
 logger = logging.getLogger('global')
 parser = argparse.ArgumentParser(description='siamrpn tracking')
 parser.add_argument('--cfg', type=str, default='config.yaml',
@@ -265,7 +271,11 @@ def train(train_loader, model, optimizer, lr_scheduler, tb_writer, val_loader=No
 
         if is_valid_number(loss.data.item()):
             optimizer.zero_grad()
-            loss.backward()
+            if APEX_AVAILABLE:
+                with amp.scale_loss(loss, optimizer) as scaled_loss:
+                    scaled_loss.backward()
+            else:
+                loss.backward()
             reduce_gradients(model)
 
             if rank == 0 and cfg.TRAIN.LOG_GRADS:
@@ -359,6 +369,20 @@ def main():
     # load pretrain
     elif cfg.TRAIN.PRETRAINED:
         load_pretrain(model, cfg.TRAIN.PRETRAINED)
+
+    # amp
+    if APEX_AVAILABLE:
+        # model, optimizer = amp.initialize(
+        #     model, optimizer, opt_level="O2", 
+        #     keep_batchnorm_fp32=True, loss_scale="dynamic"
+        # )
+
+        model, optimizer = amp.initialize(
+            model, optimizer, opt_level="O1", 
+            keep_batchnorm_fp32=None, loss_scale="dynamic"
+        )
+
+    logger.info(f"apex: {APEX_AVAILABLE}")
     dist_model = DistModule(model)
 
     logger.info(lr_scheduler)
