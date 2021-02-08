@@ -99,6 +99,8 @@ __C.TRAIN.LR_WARMUP.KWARGS = CN(new_allowed=True)
 
 __C.TRAIN.VAL_COCO = False
 
+__C.TRAIN.APEX = False
+
 # ------------------------------------------------------------------------ #
 # Dataset options
 # ------------------------------------------------------------------------ #

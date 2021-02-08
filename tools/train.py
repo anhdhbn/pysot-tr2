@@ -35,9 +35,7 @@ from tqdm import tqdm
 
 try:
     from apex import amp
-    APEX_AVAILABLE = True
 except ModuleNotFoundError:
-    APEX_AVAILABLE = False
     amp = None
 
 logger = logging.getLogger('global')
@@ -238,7 +236,7 @@ def train(train_loader, model, optimizer, lr_scheduler, tb_writer, val_loader=No
                         {'epoch': epoch,
                          'state_dict': model.module.state_dict(),
                          'optimizer': optimizer.state_dict(),
-                         'amp': amp.state_dict() if APEX_AVAILABLE else None},
+                         'amp': amp.state_dict() if amp else None},
                         cfg.TRAIN.SNAPSHOT_DIR+'/checkpoint_e%d.pth' % (epoch))
 
             if rank == 0 and val_loader is not None:
@@ -273,7 +271,7 @@ def train(train_loader, model, optimizer, lr_scheduler, tb_writer, val_loader=No
 
         if is_valid_number(loss.data.item()):
             optimizer.zero_grad()
-            if APEX_AVAILABLE:
+            if amp:
                 with amp.scale_loss(loss, optimizer) as scaled_loss:
                     scaled_loss.backward()
             else:
@@ -324,6 +322,10 @@ def main():
 
     # load cfg
     cfg.merge_from_file(args.cfg)
+
+    global amp
+    if not cfg.TRAIN.APEX:
+        amp = None
     if rank == 0:
         if not os.path.exists(cfg.TRAIN.LOG_DIR):
             os.makedirs(cfg.TRAIN.LOG_DIR)
@@ -373,7 +375,7 @@ def main():
         load_pretrain(model, cfg.TRAIN.PRETRAINED)
 
     # amp
-    if APEX_AVAILABLE:
+    if amp:
         # model, optimizer = amp.initialize(
         #     model, optimizer, opt_level="O2", 
         #     keep_batchnorm_fp32=True, loss_scale="dynamic"
@@ -384,7 +386,7 @@ def main():
             keep_batchnorm_fp32=None, loss_scale="dynamic"
         )
 
-    logger.info(f"apex: {APEX_AVAILABLE}")
+    logger.info(f"apex: {amp is not None}")
     dist_model = DistModule(model)
 
     logger.info(lr_scheduler)
