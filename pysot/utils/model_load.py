@@ -70,7 +70,7 @@ def load_pretrain(model, pretrained_path):
     return model
 
 
-def restore_from(model, optimizer, ckpt_path):
+def restore_from(model, optimizer, ckpt_path, apex=None):
     device = torch.cuda.current_device()
     ckpt = torch.load(ckpt_path,
         map_location=lambda storage, loc: storage.cuda(device))
@@ -82,4 +82,6 @@ def restore_from(model, optimizer, ckpt_path):
 
     check_keys(optimizer, ckpt['optimizer'])
     optimizer.load_state_dict(ckpt['optimizer'])
+    if apex is not None:
+        apex.load_state_dict(ckpt['amp'])
     return model, optimizer, epoch

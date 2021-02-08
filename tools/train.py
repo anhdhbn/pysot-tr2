@@ -38,6 +38,7 @@ try:
     APEX_AVAILABLE = True
 except ModuleNotFoundError:
     APEX_AVAILABLE = False
+    amp = None
 
 logger = logging.getLogger('global')
 parser = argparse.ArgumentParser(description='siamrpn tracking')
@@ -236,7 +237,8 @@ def train(train_loader, model, optimizer, lr_scheduler, tb_writer, val_loader=No
                 torch.save(
                         {'epoch': epoch,
                          'state_dict': model.module.state_dict(),
-                         'optimizer': optimizer.state_dict()},
+                         'optimizer': optimizer.state_dict(),
+                         'amp': amp.state_dict() if APEX_AVAILABLE else None},
                         cfg.TRAIN.SNAPSHOT_DIR+'/checkpoint_e%d.pth' % (epoch))
 
             if rank == 0 and val_loader is not None:
@@ -365,7 +367,7 @@ def main():
         assert os.path.isfile(cfg.TRAIN.RESUME), \
             '{} is not a valid file.'.format(cfg.TRAIN.RESUME)
         model, optimizer, cfg.TRAIN.START_EPOCH = \
-            restore_from(model, optimizer, cfg.TRAIN.RESUME)
+            restore_from(model, optimizer, cfg.TRAIN.RESUME, amp)
     # load pretrain
     elif cfg.TRAIN.PRETRAINED:
         load_pretrain(model, cfg.TRAIN.PRETRAINED)
