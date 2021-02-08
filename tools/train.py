@@ -341,7 +341,9 @@ def main():
 
     # build dataset loader
     train_loader = build_data_loader()
-    val_loader = build_val_loader()
+    val_loader = None
+    if cfg.TRAIN.VAL_COCO:
+        val_loader = build_val_loader()
 
     # build optimizer and lr_scheduler
     optimizer, lr_scheduler = build_opt_lr(model,

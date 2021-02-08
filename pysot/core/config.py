@@ -97,6 +97,8 @@ __C.TRAIN.LR_WARMUP.EPOCH = 5
 
 __C.TRAIN.LR_WARMUP.KWARGS = CN(new_allowed=True)
 
+__C.TRAIN.VAL_COCO = False
+
 # ------------------------------------------------------------------------ #
 # Dataset options
 # ------------------------------------------------------------------------ #
