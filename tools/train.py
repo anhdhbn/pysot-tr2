@@ -84,7 +84,7 @@ def build_val_loader():
     if get_world_size() > 1:
         val_sampler = DistributedSampler(val_dataset)
     val_loader = DataLoader(val_dataset,
-                              batch_size=cfg.TRAIN.BATCH_SIZE,
+                              batch_size=cfg.TRAIN.BATCH_SIZE if amp is None else cfg.TRAIN.BATCH_SIZE // 2,
                               num_workers=cfg.TRAIN.NUM_WORKERS,
                               pin_memory=True,
                               sampler=val_sampler)
@@ -191,9 +191,9 @@ def val(val_loader, model, tb_writer, epoch=-1):
         batch_info[k] = np.mean(np.array(outputs[k]))
 
     info = "Val epoch: [{}]\n".format(
-                            epoch+1)
+                            epoch)
     for cc, (k, v) in enumerate(batch_info.items()):
-        tb_writer.add_scalar(f"val_{k}", v, epoch + 1)
+        tb_writer.add_scalar(f"val_{k}", v, epoch)
         if cc % 2 == 0:
             info += ("\t{name}: {val:.6f}\t").format(name=k,
                     val=batch_info[k])
