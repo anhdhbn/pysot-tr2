@@ -368,23 +368,20 @@ def main():
         logger.info("resume from {}".format(cfg.TRAIN.RESUME))
         assert os.path.isfile(cfg.TRAIN.RESUME), \
             '{} is not a valid file.'.format(cfg.TRAIN.RESUME)
-        model, optimizer, cfg.TRAIN.START_EPOCH = \
+        model, optimizer, cfg.TRAIN.START_EPOCH, amp = \
             restore_from(model, optimizer, cfg.TRAIN.RESUME, amp)
-    # load pretrain
-    elif cfg.TRAIN.PRETRAINED:
-        load_pretrain(model, cfg.TRAIN.PRETRAINED)
-
-    # amp
-    if amp:
-        # model, optimizer = amp.initialize(
-        #     model, optimizer, opt_level="O2", 
-        #     keep_batchnorm_fp32=True, loss_scale="dynamic"
-        # )
-
-        model, optimizer = amp.initialize(
-            model, optimizer, opt_level="O1", 
-            keep_batchnorm_fp32=None, loss_scale="dynamic"
-        )
+    
+    else:
+        # load pretrain
+        if cfg.TRAIN.PRETRAINED:
+            load_pretrain(model, cfg.TRAIN.PRETRAINED)
+        # amp
+        if amp:
+            model, optimizer = amp.initialize(
+                model, optimizer, opt_level="O1", 
+                keep_batchnorm_fp32=None, loss_scale="dynamic"
+            )
+        
 
     logger.info(f"apex: {amp is not None}")
     dist_model = DistModule(model)

@@ -82,6 +82,12 @@ def restore_from(model, optimizer, ckpt_path, apex=None):
 
     check_keys(optimizer, ckpt['optimizer'])
     optimizer.load_state_dict(ckpt['optimizer'])
-    if apex is not None:
+
+    if apex is not None and ckpt['amp'] is not None:
+        model, optimizer = apex.initialize(
+            model, optimizer, opt_level="O1", 
+            keep_batchnorm_fp32=None, loss_scale="dynamic"
+        )
+        check_keys(apex, ckpt['amp'])
         apex.load_state_dict(ckpt['amp'])
-    return model, optimizer, epoch
+    return model, optimizer, epoch, apex
